@@ -1,6 +1,11 @@
+import io
+import random
+
 import discord
+import base64
 import re
 from discord.ext import commands
+from discord.ext.commands import cooldown, BucketType
 from mcstatus import MinecraftServer
 from mcstatus import MinecraftBedrockServer
 
@@ -23,26 +28,111 @@ async def on_ready():
 
 @bot.command(name="status")
 async def getServerStatus(ctx, args=""):
+    # Local_Variables
     embed = ""
+    picException = False
+
     if args != "":
-        await ctx.send("正在讀取伺服器 " + args + " 的資料，請稍候 ...")
+        await ctx.channel.send("正在讀取伺服器 " + args + " 的資料，請稍候 ...")
         try:
             server = MinecraftServer.lookup(args)
-            ping, info = server.ping(), server.status()
+            info = server.status()
 
             embed = discord.Embed(title="Minecraft 伺服器狀態", description="伺服器地址：" + args)
-            embed.set_author(name=args + " 的查詢")
-            #embed.set_thumbnail(url=info.favicon)
-            embed.add_field(name="MOTD", value=re.sub('§[a-z][0-9]*', '', info.description), inline=False)
-            embed.add_field(name="網絡延遲", value=ping.real + " ms", inline=True)
-            embed.add_field(name="伺服器版本", value=info.version.name, inline=True)
-            embed.add_field(name="玩家數目", value=info.players.online + " / " + info.players.max, inline=False)
-            embed.set_footer(text="MC 伺服器狀態查詢 | HyperNiteMC (Member of HN)")
-        except:
-            message = "請檢查並確認您所輸入的 IP 或 域名為。 伺服器可能正處於下線的狀態，請稍後再次嘗試！"
-    else:
-        message = "請輸入你希望查詢的伺服器 IP 或 域名。例子：125.12.33.98:25565 / mc.hypixel.net"
 
-    await ctx.send(embed=embed)
+            try:
+                image_64 = base64.b64decode(info.favicon.replace("data:image/png;base64,", ""))
+                image_result = open('server_icon.png', 'wb')
+                image_result.write(image_64)
+                file = discord.File("server_icon.png")
+
+                embed.set_thumbnail(url="attachment://server_icon.png")
+                image_result.close()
+            except:
+                picException = True
+                embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/default_server_favicon.png")
+
+            embed.set_author(name=args + " 的查詢")
+            embed.add_field(name="MOTD", value=re.sub('§.', '', info.description), inline=False)
+            embed.add_field(name="伺服器版本", value=info.version.name, inline=True)
+            embed.add_field(name="玩家數目", value=str(info.players.online) + " / " + str(info.players.max), inline=True)
+            embed.add_field(name="回應延遲", value=str(format(info.latency, ".2f")) + " ms", inline=True)
+            embed.add_field(name="運行協定", value="版本 " + str(info.version.protocol), inline=True)
+            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+
+        except Exception as e:
+            embed = discord.Embed(title="Minecraft 伺服器狀態", description="伺服器離線 或 地址輸入錯誤")
+            embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+            embed.add_field(name="錯誤原因 (1)", value="你所輸入的伺服器 IP 或 域名錯誤", inline=False)
+            embed.add_field(name="錯誤原因 (2)", value="伺服器正處於離線狀態", inline=False)
+            embed.add_field(name="正確域名例子", value="mc.example.com", inline=True)
+            embed.add_field(name="正確 IP 例子", value="93.184.216.34:25565", inline=True)
+            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+
+    else:
+        embed = discord.Embed(title="Minecraft 伺服器狀態", description="請輸入伺服器 IP 地址")
+        embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的伺服器 IP 或 域名", inline=False)
+        embed.add_field(name="域名例子", value="mc.hypixel.net", inline=True)
+        embed.add_field(name="IP 例子", value="125.12.33.98:25565", inline=True)
+        embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+
+    try:
+        if picException:
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(embed=embed, file=file)
+    except:
+        await ctx.channel.send("```錯誤：系統出現未知錯誤，請到 https://dc.hypernite.com #建議及提問區 通報專案維護者。```")
+
+
+@bot.command(name="pe")
+async def getPEServerStatus(ctx, args=""):
+    # Local_Variables
+    embed = ""
+
+    if args != "":
+        await ctx.channel.send("正在讀取 PE 伺服器 " + args + " 的資料，請稍候 ...")
+        try:
+            server = MinecraftBedrockServer.lookup(args)
+            info = server.status()
+
+            embed = discord.Embed(title="Minecraft PE 伺服器狀態", description="伺服器地址：" + args)
+
+            embed.set_author(name=args + " 的查詢")
+            embed.add_field(name="MOTD", value=re.sub('§.', '', info.motd), inline=False)
+            embed.add_field(name="伺服器版本", value=info.version.version, inline=True)
+            embed.add_field(name="伺服器運行軟體", value=info.map, inline=True)
+            embed.add_field(name="默認遊戲模式", value=info.gamemode, inline=True)
+            embed.add_field(name="回應延遲", value=str(format(info.latency, ".2f")) + " ms", inline=True)
+            embed.add_field(name="運行協定", value="版本 " + str(info.version.protocol), inline=True)
+            embed.add_field(name="玩家數目", value=str(info.players_online) + " / " + str(info.players_max), inline=True)
+            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+
+        except Exception as e:
+            embed = discord.Embed(title="Minecraft PE 伺服器狀態", description="伺服器離線 或 地址輸入錯誤 或 伺服器並未使用 PE 軟體")
+            embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+            embed.add_field(name="錯誤原因 (1)", value="你所輸入的伺服器 IP 或 域名錯誤", inline=False)
+            embed.add_field(name="錯誤原因 (2)", value="伺服器正處於離線狀態", inline=False)
+            embed.add_field(name="錯誤原因 (3)", value="伺服器並未使用 PE 軟體，如：Nukkit, PocketMine-MP", inline=False)
+            embed.add_field(name="正確域名例子", value="pe.example.com", inline=True)
+            embed.add_field(name="正確 IP 例子", value="93.184.216.34:19134", inline=True)
+            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+
+            print(e)
+
+    else:
+        embed = discord.Embed(title="Minecraft PE 伺服器狀態", description="請輸入伺服器 IP 地址")
+        embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的伺服器 IP 或 域名", inline=False)
+        embed.add_field(name="域名例子", value="pe.hypixel.net", inline=True)
+        embed.add_field(name="IP 例子", value="125.12.33.98:19134", inline=True)
+        embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "pe <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+
+    try:
+        await ctx.send(embed=embed)
+    except:
+        await ctx.channel.send("```錯誤：系統出現未知錯誤，請到 https://dc.hypernite.com #建議及提問區 通報專案維護者。```")
+
 
 bot.run(token)
