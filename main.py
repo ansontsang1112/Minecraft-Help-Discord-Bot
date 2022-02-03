@@ -124,7 +124,7 @@ async def getPEServerStatus(ctx, args=""):
     else:
         embed = discord.Embed(title="Minecraft PE 伺服器狀態", description="請輸入伺服器 IP 地址")
         embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
-        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的伺服器 IP 或 域名", inline=False)
+        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的 PE 伺服器 IP 或 域名", inline=False)
         embed.add_field(name="域名例子", value="pe.hypixel.net", inline=True)
         embed.add_field(name="IP 例子", value="125.12.33.98:19134", inline=True)
         embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "pe <伺服器網絡地址> | HyperNiteMC (Member of HN)")
