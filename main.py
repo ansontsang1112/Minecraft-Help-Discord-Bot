@@ -1,16 +1,14 @@
-import io
-import random
-
 import discord
 import base64
 import re
+from mcuuid import MCUUID
 from discord.ext import commands
-from discord.ext.commands import cooldown, BucketType
+from datetime import datetime
 from mcstatus import MinecraftServer
 from mcstatus import MinecraftBedrockServer
 
 # Global_Variables
-prefix = "!"
+prefix = "~"
 token = "OTM4MDkwOTcwMDE5NDIyMjQ4.YflPTA.jNXTgZIm442vUsWPSQ-UnSC8KIg"
 
 bot = commands.Bot(command_prefix=prefix)
@@ -21,12 +19,26 @@ bot.remove_command('help')
 async def on_ready():
     print('目前登入身份：', bot.user)
     print('登入身份 ID：', bot.user.id)
-    onActivity = discord.Game("獲取不同的 Minecraft 伺服器資訊")
+    onActivity = discord.Game("~help | HyperNiteMC")
 
     await bot.change_presence(status=discord.Status.dnd, activity=onActivity)
 
 
-@bot.command(name="status")
+@bot.command(name="help")
+async def embedHelp(ctx):
+    embed = discord.Embed(title="Minecraft 小助手 || 幫助頁面 ［啟動指令：" + prefix + "］")
+    embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/minecraft_support_icon_2022_v1.png")
+    embed.add_field(name=prefix + "status <伺服器 IP 地址>", value="取得查詢 MCPC 伺服器的資訊（冷卻時間：1 分鐘）", inline=False)
+    embed.add_field(name=prefix + "pe <伺服器 IP 地址>", value="取得查詢 MCPE 伺服器的資訊（冷卻時間：30 秒）", inline=False)
+    embed.add_field(name=prefix + "profile <玩家名稱 IGN>", value="取得查詢玩家的帳號資料（冷卻時間：30 秒）", inline=False)
+    embed.add_field(name=prefix + "names <玩家名稱 IGN>", value="取得查詢玩家的帳號名稱歷史（冷卻時間：30 秒）", inline=False)
+    embed.set_footer(text="Minecraft 小助手 | HyperNiteMC (Member of HN)")
+
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="status", aliases=['s'])
+@commands.cooldown(1, 60, commands.BucketType.user)
 async def getServerStatus(ctx, args=""):
     # Local_Variables
     embed = ""
@@ -87,6 +99,7 @@ async def getServerStatus(ctx, args=""):
 
 
 @bot.command(name="pe")
+@commands.cooldown(1, 30, commands.BucketType.user)
 async def getPEServerStatus(ctx, args=""):
     # Local_Variables
     embed = ""
@@ -107,7 +120,7 @@ async def getPEServerStatus(ctx, args=""):
             embed.add_field(name="回應延遲", value=str(format(info.latency, ".2f")) + " ms", inline=True)
             embed.add_field(name="運行協定", value="版本 " + str(info.version.protocol), inline=True)
             embed.add_field(name="玩家數目", value=str(info.players_online) + " / " + str(info.players_max), inline=True)
-            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "pe <伺服器網絡地址> | HyperNiteMC (Member of HN)")
 
         except Exception as e:
             embed = discord.Embed(title="Minecraft PE 伺服器狀態", description="伺服器離線 或 地址輸入錯誤 或 伺服器並未使用 PE 軟體")
@@ -117,9 +130,9 @@ async def getPEServerStatus(ctx, args=""):
             embed.add_field(name="錯誤原因 (3)", value="伺服器並未使用 PE 軟體，如：Nukkit, PocketMine-MP", inline=False)
             embed.add_field(name="正確域名例子", value="pe.example.com", inline=True)
             embed.add_field(name="正確 IP 例子", value="93.184.216.34:19134", inline=True)
-            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "status <伺服器網絡地址> | HyperNiteMC (Member of HN)")
+            embed.set_footer(text="MC 伺服器狀態查詢 | " + prefix + "pe <伺服器網絡地址> | HyperNiteMC (Member of HN)")
 
-            print(e)
+            # print(e)
 
     else:
         embed = discord.Embed(title="Minecraft PE 伺服器狀態", description="請輸入伺服器 IP 地址")
@@ -133,6 +146,80 @@ async def getPEServerStatus(ctx, args=""):
         await ctx.send(embed=embed)
     except:
         await ctx.channel.send("```錯誤：系統出現未知錯誤，請到 https://dc.hypernite.com #建議及提問區 通報專案維護者。```")
+
+
+@bot.command(name="profile", aliases=['pro', 'p', 'file'])
+@commands.cooldown(1, 30, commands.BucketType.user)
+async def playerProfile(ctx, ign=""):
+    embed = ""
+    if ign != "":
+        await ctx.channel.send("正在讀取 Minecraft 帳號 " + ign + " 的資料，請稍候 ...")
+        try:
+            player = MCUUID(name=ign)
+
+            embed = discord.Embed(title="Minecraft 帳號資料查詢", description=ign + " 的帳號資料")
+            embed.set_thumbnail(url="https://mc-heads.net/avatar/" + player.uuid)
+            embed.add_field(name="現時帳號名稱 (IGN)", value=player.name, inline=False)
+            embed.add_field(name="現時帳號唯一識別碼 (UUID)", value=player.uuid, inline=False)
+            embed.set_footer(text="MC 帳號資料查詢 | " + prefix + "profile <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+        except Exception as e:
+            embed = discord.Embed(title="Minecraft 帳號資料查詢", description="帳號名稱錯誤")
+            embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+            embed.add_field(name="錯誤原因", value="未能在 Minecraft API 系統中獲取 " + ign + " 的帳號資料", inline=False)
+            embed.set_footer(text="MC 帳號資料查詢 | " + prefix + "profile <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+            print(e)
+
+    else:
+        embed = discord.Embed(title="Minecraft 帳號資料查詢", description="請輸入帳號名稱 (IGN)")
+        embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的帳號名稱 (IGN)", inline=False)
+        embed.set_footer(text="MC 帳號資料查詢 | " + prefix + "profile <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="names", aliases=['name', 'n'])
+@commands.cooldown(1, 30, commands.BucketType.user)
+async def nameHistory(ctx, ign=""):
+    embed = ""
+    if ign != "":
+        await ctx.channel.send("正在讀取 Minecraft 帳號 " + ign + " 的歷史資料，請稍候 ...")
+        try:
+            player = MCUUID(name=ign)
+            embed = discord.Embed(title="Minecraft 帳號名稱歷史查詢", description=ign + " 的名稱歷史")
+
+            for name in player.names:
+                if name == 0:
+                    embed.add_field(name=player.names[name], value="創始名稱 (Initial)", inline=True)
+                else:
+                    embed.add_field(name=player.names[name], value=str(datetime.fromtimestamp(int(name/1000.0))).split(" ")[0], inline=True)
+
+            embed.set_footer(text="MC 帳號名稱歷史查詢 | " + prefix + "names <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+        except Exception as e:
+            embed = discord.Embed(title="Minecraft 帳號名稱歷史查詢", description="帳號名稱錯誤")
+            embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+            embed.add_field(name="錯誤原因", value="未能在 Minecraft API 系統中獲取 " + ign + " 的帳號名稱歷史", inline=False)
+            embed.set_footer(text="MC 帳號名稱歷史查詢 | " + prefix + "names <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+            print(e)
+
+    else:
+        embed = discord.Embed(title="Minecraft 帳號名稱歷史查詢", description="請輸入帳號名稱 (IGN)")
+        embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的帳號名稱 (IGN)", inline=False)
+        embed.set_footer(text="MC 帳號名稱歷史查詢 | " + prefix + "names <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+    await ctx.send(embed=embed)
+
+
+# Error Section
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"ちょっと待って！請在 {round(error.retry_after, 0)}s 後再嘗試！（伺服器醬需要休息休息 ~）")
 
 
 bot.run(token)
