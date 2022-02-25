@@ -1,3 +1,6 @@
+import os
+from urllib.request import urlretrieve
+
 import discord
 import base64
 import re
@@ -6,10 +9,13 @@ from discord.ext import commands
 from datetime import datetime
 from mcstatus import MinecraftServer
 from mcstatus import MinecraftBedrockServer
+from dotenv import load_dotenv
 
 # Global_Variables
 prefix = "~"
-token = "OTM4MDkwOTcwMDE5NDIyMjQ4.YflPTA.jNXTgZIm442vUsWPSQ-UnSC8KIg"
+
+load_dotenv()
+token = os.getenv('DISCORD_TOKEN')
 
 bot = commands.Bot(command_prefix=prefix)
 bot.remove_command('help')
@@ -158,7 +164,7 @@ async def playerProfile(ctx, ign=""):
             player = MCUUID(name=ign)
 
             embed = discord.Embed(title="Minecraft 帳號資料查詢", description=ign + " 的帳號資料")
-            embed.set_thumbnail(url="https://mc-heads.net/avatar/" + player.uuid)
+            embed.set_thumbnail(url="https://crafatar.com/avatars/" + player.uuid)
             embed.add_field(name="現時帳號名稱 (IGN)", value=player.name, inline=False)
             embed.add_field(name="現時帳號唯一識別碼 (UUID)", value=player.uuid, inline=False)
             embed.set_footer(text="MC 帳號資料查詢 | " + prefix + "profile <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
