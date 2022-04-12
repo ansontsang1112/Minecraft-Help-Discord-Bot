@@ -1,9 +1,15 @@
 import os
+import socket
 from urllib.request import urlretrieve
 
 import discord
 import base64
 import re
+import common as c
+
+from bs4 import BeautifulSoup
+
+import requests
 from mcuuid import MCUUID
 from discord.ext import commands
 from datetime import datetime
@@ -38,6 +44,8 @@ async def embedHelp(ctx):
     embed.add_field(name=prefix + "pe <伺服器 IP 地址>", value="取得查詢 MCPE 伺服器的資訊（冷卻時間：30 秒）", inline=False)
     embed.add_field(name=prefix + "profile <玩家名稱 IGN>", value="取得查詢玩家的帳號資料（冷卻時間：30 秒）", inline=False)
     embed.add_field(name=prefix + "names <玩家名稱 IGN>", value="取得查詢玩家的帳號名稱歷史（冷卻時間：30 秒）", inline=False)
+    embed.add_field(name=prefix + "stat", value="取得 Minecraft 官方服務狀態資訊 (冷卻時間：15 秒)", inline=False)
+    embed.add_field(name=prefix + "mcbug <漏洞 ID>", value="取得漏洞的描述 (冷卻時間：15 秒)", inline=False)
     embed.set_footer(text="Minecraft 小助手 | HyperNiteMC (Member of HN)")
 
     await ctx.send(embed=embed)
@@ -200,7 +208,8 @@ async def nameHistory(ctx, ign=""):
                 if name == 0:
                     embed.add_field(name=player.names[name], value="創始名稱 (Initial)", inline=True)
                 else:
-                    embed.add_field(name=player.names[name], value=str(datetime.fromtimestamp(int(name/1000.0))).split(" ")[0], inline=True)
+                    embed.add_field(name=player.names[name],
+                                    value=str(datetime.fromtimestamp(int(name / 1000.0))).split(" ")[0], inline=True)
 
             embed.set_footer(text="MC 帳號名稱歷史查詢 | " + prefix + "names <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
 
@@ -217,6 +226,69 @@ async def nameHistory(ctx, ign=""):
         embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
         embed.add_field(name="錯誤原因", value="請輸入你希望查詢的帳號名稱 (IGN)", inline=False)
         embed.set_footer(text="MC 帳號名稱歷史查詢 | " + prefix + "names <遊戲帳號名稱 (IGN)> | HyperNiteMC (Member of HN)")
+
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="stats", aliases=['stat', 'st'])
+@commands.cooldown(1, 15, commands.BucketType.user)
+async def getServicesStatus(ctx):
+    dataHash, statList = {"Minecraft 主頁": "minecraft.net", "帳號系統": "account.mojang.com", "驗證系統": "auth.mojang.com",
+                          "皮膚 (Skin)": "skins.minecraft.net", "Session": "sessionserver.mojang.com",
+                          "API": "api.mojang.com",
+                          "材質 (Texture)": "textures.minecraft.net"}, {}
+
+    embed = ""
+
+    def internet_checking(host, port=443, timeout=1):
+        try:
+            socket.setdefaulttimeout(timeout)
+            socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect((host, port))
+            return "線上"
+        except socket.error as e:
+            return "下線"
+
+    await ctx.channel.send("正在讀取 Minecraft 官方狀態，請稍候 ...")
+
+    embed = discord.Embed(title="Minecraft 官方狀態查詢", description="Minecraft Services Status")
+    embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/botInnerImg/server_online.gif")
+
+    for key in dataHash:
+        isOnline = internet_checking(dataHash[key])
+        embed.add_field(name=key, value=isOnline, inline=True)
+
+    embed.set_footer(text="MC 官方狀態查詢 | " + prefix + "stats | HyperNiteMC (Member of HN)")
+
+    await ctx.send(embed=embed)
+
+
+@bot.command(name="mcbug", aliases=['bug', 'mcb'])
+@commands.cooldown(1, 15, commands.BucketType.user)
+async def mcBugTracker(ctx, bugId=""):
+    embed = ""
+    if bugId != "":
+        await ctx.channel.send("正在讀取 Minecraft Bugs ( " + bugId + " ) 的資料，請稍候 ...")
+        url = 'https://bugs.mojang.com/si/jira.issueviews:issue-html/' + bugId + '/' + bugId + '.html'
+
+        try:
+            res = requests.get(url)
+            embed = discord.Embed(title=c.getClassInfo('h3', 'formtitle', res.text), url=url)
+            embed.set_author(name="Minecraft 漏洞查詢")
+            embed.add_field(name="漏洞描述", value=c.getIDInfo('descriptionArea', res.text), inline=False)
+
+            embed.set_footer(text="MC 漏洞查詢 | " + prefix + "mcbug <Bug ID> | HyperNiteMC (Member of HN)")
+
+        except Exception as e:
+            embed = discord.Embed(title="Minecraft 漏洞查詢", description="漏洞 ID 錯誤")
+            embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+            embed.add_field(name="錯誤原因", value="未能在 Minecraft 官方漏洞追蹤器中獲取 " + bugId + " 的歷史", inline=False)
+            embed.set_footer(text="MC 漏洞查詢 | " + prefix + "mcbug <Bug ID> | HyperNiteMC (Member of HN)")
+
+    else:
+        embed = discord.Embed(title="Minecraft 帳號名稱歷史查詢", description="請輸入漏洞 ID")
+        embed.set_thumbnail(url="https://i-cdn.hypernology.com/publicImages/bots/um.png")
+        embed.add_field(name="錯誤原因", value="請輸入你希望查詢的漏洞 ID", inline=False)
+        embed.set_footer(text="MC 漏洞查詢 | " + prefix + "mcbug <Bug ID> | HyperNiteMC (Member of HN)")
 
     await ctx.send(embed=embed)
 
